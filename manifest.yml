@@ -1,0 +1,137 @@
+modules:
+  rovo:agent:
+    - key: readygate-agent
+      name: ReadyGate
+      description: Checks Jira issues against your Definition of Ready, shows what is missing and drafts the gaps.
+      prompt: resource:static;prompts/agent.md
+      conversationStarters:
+        - Check this issue against our Definition of Ready
+        - Draft the missing acceptance criteria for this issue
+        - Turn this bug report into a complete repro template
+        - Show the Definition of Ready for this project
+      actions:
+        - check-issue-readiness
+        - get-dor-policy
+        - apply-issue-sections
+        - post-readiness-comment
+  action:
+    - key: check-issue-readiness
+      name: Check issue readiness
+      function: checkIssueReadiness
+      actionVerb: GET
+      description: >
+        Scores one Jira issue against the project's Definition of Ready and returns
+        the score, READY or NEEDS_INFO status, the missing items with hints, the issue
+        text, recent comments and attachment names.
+      inputs:
+        issueKey:
+          title: Issue key
+          type: string
+          required: true
+          description: The Jira issue key, for example DEMO-3.
+    - key: get-dor-policy
+      name: Get Definition of Ready policy
+      function: getDorPolicy
+      actionVerb: GET
+      description: Returns the Definition of Ready policy (threshold and rule overrides) for a Jira project.
+      inputs:
+        projectKey:
+          title: Project key
+          type: string
+          required: true
+          description: The Jira project key, for example DEMO.
+    - key: apply-issue-sections
+      name: Apply drafted sections to an issue
+      function: applyIssueSections
+      actionVerb: UPDATE
+      description: >
+        Appends drafted sections (acceptance criteria, steps to reproduce, expected and
+        actual result, environment) to the issue description, optionally adds labels,
+        then re-checks the issue. Only call after the user confirmed the exact text.
+      inputs:
+        issueKey:
+          title: Issue key
+          type: string
+          required: true
+          description: The Jira issue key.
+        acceptanceCriteria:
+          title: Acceptance criteria
+          type: string
+          required: false
+          description: Given/When/Then bullets, one per line starting with "- ".
+        stepsToReproduce:
+          title: Steps to reproduce
+          type: string
+          required: false
+          description: Numbered steps, one per line starting with "1. ".
+        expectedResult:
+          title: Expected result
+          type: string
+          required: false
+          description: Short paragraph.
+        actualResult:
+          title: Actual result
+          type: string
+          required: false
+          description: Short paragraph.
+        environment:
+          title: Environment
+          type: string
+          required: false
+          description: 'Lines of key and value, for example Browser - Safari 17.'
+        labelsToAdd:
+          title: Labels to add
+          type: string
+          required: false
+          description: Comma separated labels.
+    - key: post-readiness-comment
+      name: Post a comment on an issue
+      function: postReadinessComment
+      actionVerb: CREATE
+      description: Adds a plain-text comment to a Jira issue. Only call after the user approved the message.
+      inputs:
+        issueKey:
+          title: Issue key
+          type: string
+          required: true
+          description: The Jira issue key.
+        message:
+          title: Message
+          type: string
+          required: true
+          description: The comment text.
+  jira:issuePanel:
+    - key: readiness-panel
+      title: Readiness
+      icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
+      resource: panel
+      resolver:
+        function: panelResolver
+      render: native
+  function:
+    - key: panelResolver
+      handler: index.panelHandler
+    - key: checkIssueReadiness
+      handler: index.checkIssueReadiness
+    - key: getDorPolicy
+      handler: index.getDorPolicy
+    - key: applyIssueSections
+      handler: index.applyIssueSections
+    - key: postReadinessComment
+      handler: index.postReadinessComment
+resources:
+  - key: static
+    path: static
+  - key: panel
+    path: src/frontend/panel.jsx
+permissions:
+  scopes:
+    - read:jira-work
+    - write:jira-work
+    - storage:app
+app:
+  runtime:
+    name: nodejs24.x
+    memoryMB: 256
+    architecture: arm64
+  id: ari:cloud:ecosystem::app/27bd08d0-123a-42f8-abab-40a18e9b9ba4
